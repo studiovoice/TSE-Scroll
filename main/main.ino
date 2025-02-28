@@ -1,60 +1,50 @@
-const int pir1 = 5; // PIR Sensor 1 connected to GPIO5
-const int pir2 = 4; // PIR Sensor 2 connected to GPIO4
-const int pir3 = 15; // PIR Sensor 3 connected to GPIO15
+const int pir1 = 5;   // PIR Sensor 1 connected to GPIO5
+const int pir2 = 4;   // PIR Sensor 2 connected to GPIO4
+const int pir3 = 15;  // PIR Sensor 3 connected to GPIO15
 
-const int motorIn1 = 25; // L298N IN1
-const int motorIn2 = 26;  // L298N IN2
+const int motorIn1 = 25;  // L298N IN1 connected to GPIO25
+const int motorIn2 = 26;  // L298N IN2 connected to GPIO26
 
-int state = 0; // 0 = Monitoring, 1 = Motion detected
-bool motionTriggered = false; // Variable to track if motion has already been detected
+bool motionDetected = false;   // Track if motion was detected
+unsigned long lastMotionTime = 0;  // Time when motion was last detected
+const unsigned long stopDelay = 60000;  // 1 minute in milliseconds
 
 void setup() {
-    Serial.begin(9600);
-    pinMode(pir1, INPUT_PULLDOWN);
-    pinMode(pir2, INPUT_PULLDOWN);
-    pinMode(pir3, INPUT_PULLDOWN);
+  Serial.begin(9600);
+  pinMode(pir1, INPUT);
+  pinMode(pir2, INPUT);
+  pinMode(pir3, INPUT);
 
-    pinMode(motorIn1, OUTPUT);
-    pinMode(motorIn2, OUTPUT);
+  pinMode(motorIn1, OUTPUT);
+  pinMode(motorIn2, OUTPUT);
 }
 
-unsigned long motorStartTime = 0;
-const long motorRunTime = 5000; // 5 seconds
-
 void loop() {
-    // Check motion sensors
-    bool motion1 = digitalRead(pir1) == HIGH;
-    bool motion2 = digitalRead(pir2) == HIGH;
-    bool motion3 = digitalRead(pir3) == HIGH;
+  bool motion1 = digitalRead(pir1) == HIGH;
+  bool motion2 = digitalRead(pir2) == HIGH;
+  bool motion3 = digitalRead(pir3) == HIGH;
+  bool motionNow = motion1 || motion2 || motion3;  // Check if any sensor detects motion
+
+  if (motionNow) {
+    if (motion1) Serial.println("Motion detected by PIR Sensor 1!");
+    if (motion2) Serial.println("Motion detected by PIR Sensor 2!");
+    if (motion3) Serial.println("Motion detected by PIR Sensor 3!");
+
+    lastMotionTime = millis();  // Update the last motion time
     
-    // Current state
-    unsigned long currentTime = millis();
-    
-    // If any PIR sensor detects motion and we're not already running the motor
-    if ((motion1 || motion2 || motion3) && state == 0) {
-        motorStartTime = currentTime;
-        state = 1; // Set state to motion detected
-        
-        // Run the motor
-        Serial.println("Motor running...");
-        digitalWrite(motorIn1, HIGH);
-        digitalWrite(motorIn2, LOW);
+    if (!motionDetected) {  // Only trigger motor start once
+      Serial.println("Motor running...");
+      digitalWrite(motorIn1, HIGH);
+      digitalWrite(motorIn2, LOW);
+      motionDetected = true; // Mark motion as detected
     }
-    
-    // If motor has been running for the specified time
-    if (state == 1 && (currentTime - motorStartTime >= motorRunTime)) {
-        // Stop the motor
-        Serial.println("Motor stopped.");
-        digitalWrite(motorIn1, LOW);
-        digitalWrite(motorIn2, LOW);
-        
-        state = 2; // Cooldown state
-        motorStartTime = currentTime; // Reset timer for cooldown
-    }
-    
-    // Reset after cooldown period (1 second)
-    if (state == 2 && (currentTime - motorStartTime >= 1000)) {
-        state = 0;
-        Serial.println("Monitoring...");
-    }
+  }
+
+  // Check if we should stop the motor (no motion for 1 minute)
+  if (motionDetected && !motionNow && (millis() - lastMotionTime >= stopDelay)) {
+    Serial.println("No motion detected for 1 minute. Stopping motor...");
+    digitalWrite(motorIn1, LOW);
+    digitalWrite(motorIn2, LOW);
+    motionDetected = false;
+  }
 }
