@@ -18,7 +18,7 @@ Code and schematics for the scrolling mechanism used in VOICE's Time Space Exist
 
 
 ## Wiring Diagram
-![TSE scroll system wiring diagram](TSE%20Diagram.png)
+![TSE scroll system wiring diagram](wiring-diagram.png)
 
 ## How it works
 - The PIR sensors detect motion and sends a HIGH pulse to the ESP32.
